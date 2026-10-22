@@ -1,0 +1,15 @@
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+.ruff_cache
+data
+backups
+demo/generated
+frontend/node_modules
+frontend/dist
+.env
+.env.*
+secrets
+*.pem
+*.key

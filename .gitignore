@@ -22,3 +22,21 @@ wheels/
 .vscode/
 .idea/
 .DS_Store
+
+# Application data (workbooks, database, jobs) and generated demo files
+data/
+demo/generated/
+backups/
+
+# Secrets: never commit API keys or tunnel tokens
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/README.md
+*.pem
+*.key
+
+# Frontend build output
+frontend/node_modules/
+frontend/dist/

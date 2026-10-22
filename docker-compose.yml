@@ -1,0 +1,95 @@
+# Conversational Workbook Assistant
+#
+#   docker compose up --build                  # local profile: http://127.0.0.1:8080 (demo mode, no API key)
+#   docker compose --profile remote up -d      # adds the Cloudflare Tunnel (see docs/remote-access.md)
+#
+# Only the gateway publishes a port, and only on 127.0.0.1. The backend is reachable only on the
+# private Compose network; the worker has no network at all and no listening service.
+
+name: projections-assistant
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/gateway.Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      backend:
+        condition: service_started
+    networks: [internal, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/var/cache/nginx", "/var/run", "/tmp"]
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+      JOBS_DIR: /data/jobs
+      WORKER_MODE: external
+    volumes:
+      - app-data:/data
+      - calc-jobs:/data/jobs
+      - backups:/backups
+    # The backend needs outbound internet for the Claude API (api.anthropic.com) in anthropic mode.
+    networks: [internal, egress]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      JOBS_DIR: /data/jobs
+    volumes:
+      - calc-jobs:/data/jobs
+    network_mode: none
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  cloudflared:
+    profiles: ["remote"]
+    image: cloudflare/cloudflared:2026.10.3
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN_FILE: /run/secrets/cloudflare_tunnel_token
+    secrets: [cloudflare_tunnel_token]
+    depends_on: [gateway]
+    networks: [edge]
+    restart: unless-stopped
+    read_only: true
+
+networks:
+  internal:
+    internal: true
+  edge: {}
+  egress: {}
+
+volumes:
+  app-data:
+  calc-jobs:
+  backups:
+
+secrets:
+  cloudflare_tunnel_token:
+    file: ./secrets/cloudflare_tunnel_token

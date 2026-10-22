@@ -1,14 +1,58 @@
 [project]
 name = "projections-assistant"
 version = "0.1.0"
-description = "Add your description here"
+description = "Conversational workbook assistant: plain-language scenarios over Excel workbooks, recalculated with LibreOffice and explained with the Claude API"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
-
-[project.scripts]
-projections-assistant = "projections_assistant:main"
+dependencies = [
+    "alembic>=1.20.0",
+    "anthropic>=1.17.0",
+    "fastapi>=0.157.0",
+    "lxml>=6.1.3",
+    "openpyxl>=3.1.5",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "pyjwt[crypto]>=2.15.1",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.1.5",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.13.3,<0.14.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"
+module-root = "backend"
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = "-ra"
+markers = [
+    "libreoffice: needs a real LibreOffice installation (soffice on PATH)",
+    "live_ai: calls the real Claude API; needs ANTHROPIC_API_KEY and explicit opt-in",
+    "browser: Playwright browser end-to-end tests",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "playwright>=1.64.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I"]
+ignore = [
+    "B008",  # FastAPI dependency-injection defaults (Depends/File) are the framework idiom
+    "E501",  # long literal lines (XML profile, messages) are kept readable rather than wrapped
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]
